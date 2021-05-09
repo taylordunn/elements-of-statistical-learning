@@ -10,6 +10,7 @@ output:
     theme: paper
     highlight: zenburn
 bibliography: ../references.bib
+csl: ../apa.csl
 nocite: |
   @Hastie2009
 ---

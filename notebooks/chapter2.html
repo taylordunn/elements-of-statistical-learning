@@ -463,8 +463,9 @@ x_i^T =
 <p>A matrix <span class="math inline">\(A \in \mathbb{R}^{2 \times 3}\)</span> multiplied by <span class="math inline">\(B \in \mathbb{R}^{3 \times 2}\)</span> results in a matrix <span class="math inline">\(C \in \mathbb{R}^{2 \times 2}\)</span>. If we were to, say, take the transpose of <span class="math inline">\(A\)</span>, then <span class="math inline">\(A^T \in \mathbb{R}^{3 \times 2}\)</span> no longer conforms:</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">t</span>(a) <span class="sc">%*%</span> b</span></code></pre></div>
 <pre><code>## Error in t(a) %*% b: non-conformable arguments</code></pre>
+<p>This has just scratched the surface of matrix algebra, but will do for now. Back to the point of of section 2.2:</p>
 <blockquote>
-<p>For the moment we can loosely state the learning task as follows: given the value of an input vector <span class="math inline">\(X\)</span>, make a good prediction of the output <span class="math inline">\(Y\)</span>, denoted by <span class="math inline">\(\hat{Y}\)</span>. If <span class="math inline">\(Y\)</span> takes values in <span class="math inline">\(\mathbb{R}\)</span> then so should <span class="math inline">\(\hat{Y}\)</span>; likewise for categorical outputs, <span class="math inline">\(\hat{G}\)</span> should take values in the same set <span class="citation">(Hastie, Tibshirani, and Friedman 2009, 11)</span></p>
+<p>For the moment we can loosely state the learning task as follows: given the value of an input vector <span class="math inline">\(X\)</span>, make a good prediction of the output <span class="math inline">\(Y\)</span>, denoted by <span class="math inline">\(\hat{Y}\)</span>. If <span class="math inline">\(Y\)</span> takes values in <span class="math inline">\(\mathbb{R}\)</span> then so should <span class="math inline">\(\hat{Y}\)</span>; likewise for categorical outputs, <span class="math inline">\(\hat{G}\)</span> should take values in the same set <span class="citation">(Hastie et al., 2009, p. 11)</span></p>
 </blockquote>
 </div>
 <div id="two-simple-approaches-to-prediction-least-squares-and-nearest-neighbors" class="section level1">
@@ -480,7 +481,7 @@ x_i^T =
 Reproducibility receipt
 </summary>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Sys.time</span>()</span></code></pre></div>
-<pre><code>## [1] &quot;2021-05-08 22:50:39 AST&quot;</code></pre>
+<pre><code>## [1] &quot;2021-05-08 22:56:59 AST&quot;</code></pre>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="st">&quot;git2r&quot;</span> <span class="sc">%in%</span> <span class="fu">installed.packages</span>()) {</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (git2r<span class="sc">::</span><span class="fu">in_repository</span>()) {</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    git2r<span class="sc">::</span><span class="fu">repository</span>()</span>
@@ -488,7 +489,7 @@ Reproducibility receipt
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 <pre><code>## Local:    main C:/Users/Taylor/Documents/learning/textbooks/elements-of-statistical-learning
 ## Remote:   main @ origin (https://github.com/taylordunn/elements-of-statistical-learning.git)
-## Head:     [053a87b] 2021-05-08: README and renv setup</code></pre>
+## Head:     [8219441] 2021-05-09: Section 2.2</code></pre>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## - Session info ---------------------------------------------------------------
 ##  setting  value                       
@@ -579,9 +580,9 @@ Reproducibility receipt
 </div>
 <div id="references" class="section level1 unnumbered">
 <h1 class="unnumbered">References</h1>
-<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="refs" class="references csl-bib-body hanging-indent" line-spacing="2">
 <div id="ref-Hastie2009" class="csl-entry">
-Hastie, Trevor, Robert Tibshirani, and Jerome Friedman. 2009. <em><span class="nocase">The Elements of Statistical Learning</span></em>. Springer Series in Statistics. New York, NY: Springer New York. <a href="https://doi.org/10.1007/978-0-387-84858-7">https://doi.org/10.1007/978-0-387-84858-7</a>.
+Hastie, T., Tibshirani, R., &amp; Friedman, J. (2009). <em><span class="nocase">The Elements of Statistical Learning</span></em>. Springer New York. <a href="https://doi.org/10.1007/978-0-387-84858-7">https://doi.org/10.1007/978-0-387-84858-7</a>
 </div>
 </div>
 </div>
@@ -623,7 +624,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeCodeFolding("hide" === "show");
+  window.initializeCodeFolding("show" === "show");
 });
 </script>
 
