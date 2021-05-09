@@ -1,0 +1,180 @@
+---
+title: "Chapter 2: Overview of Supervised Learning"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  html_document:
+    code_folding: show
+    df_print: paged
+    toc: TRUE
+    toc_float: TRUE
+    theme: paper
+    highlight: zenburn
+bibliography: ../references.bib
+nocite: |
+  @Hastie2009
+---
+<style>
+body .main-container {
+  max-width: 1500px !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  fig.width = 6, fig.height = 4, dpi = 150
+)
+```
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(here)
+```
+
+```{r dunnr, include=FALSE}
+library(dunnr)
+
+# This command must be run once to register all fonts installed on Windows
+# extrafont::font_import(pattern = "Roboto")
+# This command must be run once in each R session to register fonts
+extrafont::loadfonts(device = "win", quiet = TRUE)
+
+theme_set(theme_td())
+set_geom_fonts()
+set_palette()
+```
+
+# 2.2 Overview of Supervised Learning
+
+It has been a few years since I took Linear Algebra, so I'll use this section as a matrix notation refresher.
+
+Consider an input vector $X$ with components indexed as $X_j$ ($j = 1, \dots, p$), and a quantitative output vector $Y$.
+We use $G$ for qualitative outputs, but will focus on quantitative for this example.
+
+Observations of the generic $X$ and $Y$ are written in lowercase.
+The $i$th observation of $X$ is denoted $x_i$ ($i = 1, \dots, N$), which is a $p$-vector itself.
+A matrix of $N$ observations is represented by $\textbf{X}$, with $N$ rows and $p$ columns:
+
+$$
+\textbf{X} = 
+\begin{bmatrix}
+\textbf{x}_1 \\
+\textbf{x}_2 \\
+\vdots \\
+\textbf{x}_N
+\end{bmatrix} =
+\begin{bmatrix}
+x_{11} \cdots x_{1p} \\
+x_{21} \cdots x_{2p} \\
+\vdots \\
+x_{N1} \cdots x_{Np}
+\end{bmatrix}
+$$
+
+Note how the subscripts distinguish the input vectors:
+
+* A single observation $x_i$ has $p$ elements for each input variable
+    * e.g. for two inputs age and sex, an observation might be $x_i$ = (29 years, male)
+* A vector $\textbf{x}_j$ (note the bolding) consists of all $N$ observations for the variable $X_j$
+    * e.g. for $N = 3$ observations of sex, $x_j$ = (male, female, female)
+
+The age and sex example would have the following matrix of observations:
+
+$$
+\textbf{X} = 
+\begin{bmatrix}
+29 \quad \text{male} \\
+22 \quad \text{female} \\
+30 \quad \text{female} \\
+\end{bmatrix}
+$$
+    
+Since all vectors are assumed to be column vectors, the $i$th row of $\textbf{X}$ is the vector transpose $x_i^T$:
+
+$$
+x_i =
+\begin{bmatrix}
+29 \\ \text{male}
+\end{bmatrix}
+\rightarrow
+x_i^T =
+\begin{bmatrix}
+29 \quad \text{male}
+\end{bmatrix}
+$$
+
+Matrices can be operated on in R with `matrix()`:
+
+```{r}
+a <-
+  matrix(
+    c(1, 2, 3,
+      4, 5, 6),
+    nrow = 2 
+  )
+a
+```
+
+We can get the transpose of a matrix with `t()`:
+
+```{r}
+t(a)
+```
+
+Matrix multiplication can be done with the `%*%` operator (if they are conformable):
+
+```{r}
+b <-
+  matrix(
+    c(1, 2,
+      3, 4,
+      5, 6),
+    nrow = 3
+  )
+c <- a %*% b
+c
+```
+
+A matrix $A \in \mathbb{R}^{2 \times 3}$ multiplied by $B \in \mathbb{R}^{3 \times 2}$ results in a matrix $C \in \mathbb{R}^{2 \times 2}$.
+If we were to, say, take the transpose of $A$, then $A^T \in \mathbb{R}^{3 \times 2}$ no longer conforms:
+
+```{r error=TRUE}
+t(a) %*% b
+```
+
+This has just scratched the surface of matrix algebra, but will do for now.
+Back to the point of of section 2.2:
+
+> For the moment we can loosely state the learning task as follows: given the value of an input vector $X$, make a good prediction of the output $Y$, denoted by $\hat{Y}$. If $Y$ takes values in $\mathbb{R}$ then so should $\hat{Y}$; likewise for categorical outputs, $\hat{G}$ should take values in the same set [@Hastie2009, p. 11] 
+
+# 2.3 Two Simple Approaches to Prediction: Least Squares and Nearest Neighbors
+
+$$
+\hat{Y} = \hat{\beta}_0 + \sum_{j=1}^p X_j \hat{\beta}_j \tag{2.1}
+$$
+
+
+
+# Reproducibility
+
+<details><summary>Reproducibility receipt</summary>
+
+```{r}
+Sys.time()
+```
+
+```{r}
+if ("git2r" %in% installed.packages()) {
+  if (git2r::in_repository()) {
+    git2r::repository()
+  }
+}
+```
+
+```{r}
+sessioninfo::session_info()
+```
+
+</details>
+
+# References
