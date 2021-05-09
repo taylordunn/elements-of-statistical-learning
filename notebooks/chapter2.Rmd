@@ -54,15 +54,15 @@ We use $G$ for qualitative outputs, but will focus on quantitative for this exam
 
 Observations of the generic $X$ and $Y$ are written in lowercase.
 The $i$th observation of $X$ is denoted $x_i$ ($i = 1, \dots, N$), which is a $p$-vector itself.
-A matrix of $N$ observations is represented by $\textbf{X}$, with $N$ rows and $p$ columns:
+A matrix of $N$ observations is represented by $\bf{X}$, with $N$ rows and $p$ columns:
 
 $$
-\textbf{X} = 
+\bf{X} = 
 \begin{bmatrix}
-\textbf{x}_1 \\
-\textbf{x}_2 \\
+\bf{x}_1 \\
+\bf{x}_2 \\
 \vdots \\
-\textbf{x}_N
+\bf{x}_N
 \end{bmatrix} =
 \begin{bmatrix}
 x_{11} \cdots x_{1p} \\
@@ -76,13 +76,13 @@ Note how the subscripts distinguish the input vectors:
 
 * A single observation $x_i$ has $p$ elements for each input variable
     * e.g. for two inputs age and sex, an observation might be $x_i$ = (29 years, male)
-* A vector $\textbf{x}_j$ (note the bolding) consists of all $N$ observations for the variable $X_j$
+* A vector $\bf{x}_j$ (note the bolding) consists of all $N$ observations for the variable $X_j$
     * e.g. for $N = 3$ observations of sex, $x_j$ = (male, female, female)
 
 The age and sex example would have the following matrix of observations:
 
 $$
-\textbf{X} = 
+\bf{X} = 
 \begin{bmatrix}
 29 \quad \text{male} \\
 22 \quad \text{female} \\
@@ -90,7 +90,7 @@ $$
 \end{bmatrix}
 $$
     
-Since all vectors are assumed to be column vectors, the $i$th row of $\textbf{X}$ is the vector transpose $x_i^T$:
+Since all vectors are assumed to be column vectors, the $i$th row of $\bf{X}$ is the vector transpose $x_i^T$:
 
 $$
 x_i =
@@ -146,14 +146,136 @@ t(a) %*% b
 This has just scratched the surface of matrix algebra, but will do for now.
 Back to the point of of section 2.2:
 
-> For the moment we can loosely state the learning task as follows: given the value of an input vector $X$, make a good prediction of the output $Y$, denoted by $\hat{Y}$. If $Y$ takes values in $\mathbb{R}$ then so should $\hat{Y}$; likewise for categorical outputs, $\hat{G}$ should take values in the same set [@Hastie2009, p. 11] 
+> For the moment we can loosely state the learning task as follows: given the value of an input vector $X$, make a good prediction of the output $Y$, denoted by $\hat{Y}$. If $Y$ takes values in $\mathbb{R}$ then so should $\hat{Y}$; likewise for categorical outputs, $\hat{G}$ should take values in the same set associated with $G$. [@Hastie2009, p. 11] 
 
 # 2.3 Two Simple Approaches to Prediction: Least Squares and Nearest Neighbors
+
+## 2.3.1 Linear Models and Least Squares
+
 
 $$
 \hat{Y} = \hat{\beta}_0 + \sum_{j=1}^p X_j \hat{\beta}_j \tag{2.1}
 $$
 
+The term $\hat{\beta}_0$ is the intercept, sometimes called the *bias* in machine learning.
+We can add $\hat{\beta}_0$ to the coefficients $\hat{beta}$ and write the above in vector notation:
+
+$$
+\hat{Y} = X^T \hat{\beta} \tag{2.2}
+$$
+
+When it comes to fitting the linear model, by far the most popular method is *least squares*, where the coefficients $\beta$ minimize the *residual sum of squares*:
+
+$$
+\text{RSS}(\beta) \ \sum_{i=1}^N (y_i - x_i^T \beta)^2 \tag{2.3}
+$$
+
+which is written in matrix notation as:
+
+$$
+\text{RSS}(\beta) = (\bf{y} - \bf{X}\beta)^T(\bf{y} - \bf{X}\beta)  \tag{2.4}
+$$
+
+Differentiating with respect to $\beta$, and setting equal to 0 gives us the unique solution:
+
+$$
+\hat{\beta} = (\bf{X}^T \bf{X})^{-1} \bf{X}^T \bf{y}
+$$
+
+The data in Figure 2.1 are provided [online](https://web.stanford.edu/~hastie/ElemStatLearn/).
+Load the data:
+
+```{r}
+load(here("data", "ESL.mixture.rda"))
+esl_mixture <- ESL.mixture
+rm(ESL.mixture)
+```
+
+This gives us a list with 8 elements, all of which are numeric vectors/matrices.
+Reading the [data description file](https://web.stanford.edu/~hastie/ElemStatLearn/datasets/mixture.example.info.txt), looks like the data we want to plot are `x` and `y`:
+
+```{r}
+d <-
+  tibble(
+    x1 = esl_mixture$x[,1],
+    x2 = esl_mixture$x[,2],
+    y = esl_mixture$y
+  )
+d
+```
+
+```{r fig.height=4, fig.width=4}
+p <- d %>%
+  ggplot(aes(x = x1, y = x2)) +
+  geom_point(aes(color = factor(y)), shape = 21, size = 2, stroke = 1) +
+  scale_color_manual(values = c("lightblue", "orange")) +
+  theme(legend.position = "none")
+p
+```
+
+Now our first chance to use `tidymodels`.
+Specify the linear regression model:
+
+```{r}
+library(tidymodels)
+
+lm_mixture_spec <- linear_reg() %>%
+  set_engine("lm") %>%
+  set_mode("regression")
+lm_mixture_spec
+```
+
+Fit it to the data (no splitting into training and testing yet):
+
+```{r}
+lm_mixture_fit <- lm_mixture_spec %>%
+  fit(y ~ x1 + x2, data = d)
+lm_mixture_fit
+```
+
+The "testing" set is the grid of values `esl_mixture$xnew`:
+
+```{r}
+d_testing <- as_tibble(esl_mixture$xnew)
+d_testing
+```
+
+which we then apply the fit model to and assign the observation $x_i$ to BLUE if $\hat{y}_i \leq 0.5$ , or ORANGE if $\hat{y}_i > 0.5$:
+
+```{r fig.height=4, fig.width=4}
+d_testing_pred <-
+  bind_cols(
+    d_testing,
+    predict(lm_mixture_fit, d_testing)
+  ) %>%
+  mutate(y = ifelse(.pred > 0.5, 1, 0))
+p <- p +
+  geom_point(
+    data = d_testing_pred,
+    aes(color = factor(y)), size = 0.05, alpha = 0.5
+  )
+p
+```
+
+And the last piece is to determine where to draw the decision boundary:
+
+$$
+\begin{align}
+y = \beta_0 + x_1 \beta_1 + x_2 \beta_2 = 0.5 \\
+x_2 = \frac{0.5 - \beta_0 - x_1 \beta_1}{\beta_2}
+\end{align}
+$$
+```{r fig.height=4, fig.width=4}
+beta <- as.numeric(coef(lm_mixture_fit$fit))
+p +
+  geom_line(
+    data = d_testing %>%
+      mutate(
+        x2 = (0.5 - beta[1] - x1 * beta[2]) / beta[3]
+      ),
+    size = 1
+  )
+```
 
 
 # Reproducibility
