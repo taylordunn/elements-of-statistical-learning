@@ -23,13 +23,14 @@ body .main-container {
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE,
-  fig.width = 6, fig.height = 4, dpi = 150
+  fig.width = 4, fig.height = 4, dpi = 150
 )
 ```
 
 ```{r packages, include=FALSE}
 library(tidyverse)
 library(here)
+library(glue)
 ```
 
 ```{r dunnr, include=FALSE}
@@ -65,10 +66,10 @@ $$
 \bf{x}_N
 \end{bmatrix} =
 \begin{bmatrix}
-x_{11} \cdots x_{1p} \\
-x_{21} \cdots x_{2p} \\
+x_{11} & \cdots & x_{1p} \\
+x_{21} & \cdots & x_{2p} \\
 \vdots \\
-x_{N1} \cdots x_{Np}
+x_{N1} & \cdots  & x_{Np}
 \end{bmatrix}
 $$
 
@@ -84,9 +85,9 @@ The age and sex example would have the following matrix of observations:
 $$
 \bf{X} = 
 \begin{bmatrix}
-29 \quad \text{male} \\
-22 \quad \text{female} \\
-30 \quad \text{female} \\
+29 & \text{male} \\
+22 & \text{female} \\
+30 & \text{female} \\
 \end{bmatrix}
 $$
     
@@ -100,7 +101,7 @@ x_i =
 \rightarrow
 x_i^T =
 \begin{bmatrix}
-29 \quad \text{male}
+29 & \text{male}
 \end{bmatrix}
 $$
 
@@ -146,12 +147,11 @@ t(a) %*% b
 This has just scratched the surface of matrix algebra, but will do for now.
 Back to the point of of section 2.2:
 
-> For the moment we can loosely state the learning task as follows: given the value of an input vector $X$, make a good prediction of the output $Y$, denoted by $\hat{Y}$. If $Y$ takes values in $\mathbb{R}$ then so should $\hat{Y}$; likewise for categorical outputs, $\hat{G}$ should take values in the same set associated with $G$. [@Hastie2009, p. 11] 
+> For the moment we can loosely state the learning task as follows: given the value of an input vector $X$, make a good prediction of the output $Y$, denoted by $\hat{Y}$. If $Y$ takes values in $\mathbb{R}$ then so should $\hat{Y}$; likewise for categorical outputs, $\hat{G}$ should take values in the same set $\mathcal{G}$ associated with $G$. [@Hastie2009, p. 11] 
 
 # 2.3 Two Simple Approaches to Prediction: Least Squares and Nearest Neighbors
 
 ## 2.3.1 Linear Models and Least Squares
-
 
 $$
 \hat{Y} = \hat{\beta}_0 + \sum_{j=1}^p X_j \hat{\beta}_j \tag{2.1}
@@ -195,22 +195,22 @@ This gives us a list with 8 elements, all of which are numeric vectors/matrices.
 Reading the [data description file](https://web.stanford.edu/~hastie/ElemStatLearn/datasets/mixture.example.info.txt), looks like the data we want to plot are `x` and `y`:
 
 ```{r}
-d <-
+d_mixture <-
   tibble(
     x1 = esl_mixture$x[,1],
     x2 = esl_mixture$x[,2],
     y = esl_mixture$y
   )
-d
+d_mixture
 ```
 
-```{r fig.height=4, fig.width=4}
-p <- d %>%
+```{r}
+p_fig2.1 <- d_mixture %>%
   ggplot(aes(x = x1, y = x2)) +
   geom_point(aes(color = factor(y)), shape = 21, size = 2, stroke = 1) +
   scale_color_manual(values = c("lightblue", "orange")) +
   theme(legend.position = "none")
-p
+p_fig2.1
 ```
 
 Now our first chance to use `tidymodels`.
@@ -219,63 +219,629 @@ Specify the linear regression model:
 ```{r}
 library(tidymodels)
 
-lm_mixture_spec <- linear_reg() %>%
+lm_spec <- linear_reg() %>%
   set_engine("lm") %>%
   set_mode("regression")
-lm_mixture_spec
+lm_spec
 ```
 
 Fit it to the data (no splitting into training and testing yet):
 
 ```{r}
-lm_mixture_fit <- lm_mixture_spec %>%
-  fit(y ~ x1 + x2, data = d)
-lm_mixture_fit
+lm_fit_mixture <- lm_spec %>%
+  fit(y ~ x1 + x2, data = d_mixture)
+lm_fit_mixture
 ```
 
 The "testing" set is the grid of values `esl_mixture$xnew`:
 
 ```{r}
-d_testing <- as_tibble(esl_mixture$xnew)
-d_testing
+d_mixture_grid <- as_tibble(esl_mixture$xnew)
+d_mixture_grid
 ```
 
-which we then apply the fit model to and assign the observation $x_i$ to BLUE if $\hat{y}_i \leq 0.5$ , or ORANGE if $\hat{y}_i > 0.5$:
+which we then apply the fit model to and assign the observation $x_i$ to <span style="color: lightblue; font-weight:bold">BLUE</span> if $\hat{y}_i \leq 0.5$ , or <span style="color: orange; font-weight:bold">ORANGE</span> if $\hat{y}_i > 0.5$:
 
-```{r fig.height=4, fig.width=4}
-d_testing_pred <-
+```{r}
+d_mixture_grid_pred <-
   bind_cols(
-    d_testing,
-    predict(lm_mixture_fit, d_testing)
+    d_mixture_grid,
+    predict(lm_fit_mixture, d_mixture_grid)
   ) %>%
   mutate(y = ifelse(.pred > 0.5, 1, 0))
-p <- p +
+p_fig2.1 <- p_fig2.1 +
   geom_point(
-    data = d_testing_pred,
+    data = d_mixture_grid_pred,
     aes(color = factor(y)), size = 0.05, alpha = 0.5
   )
-p
+p_fig2.1
 ```
 
 And the last piece is to determine where to draw the decision boundary:
 
 $$
 \begin{align}
-y = \beta_0 + x_1 \beta_1 + x_2 \beta_2 = 0.5 \\
-x_2 = \frac{0.5 - \beta_0 - x_1 \beta_1}{\beta_2}
+y &= \beta_0 + x_1 \beta_1 + x_2 \beta_2 = 0.5 \\
+\rightarrow x_2 &= \frac{0.5 - \beta_0 - x_1 \beta_1}{\beta_2}
 \end{align}
 $$
-```{r fig.height=4, fig.width=4}
-beta <- as.numeric(coef(lm_mixture_fit$fit))
-p +
+```{r fig2.1}
+beta <- as.numeric(coef(lm_fit_mixture$fit))
+p_fig2.1 +
   geom_line(
-    data = d_testing %>%
+    data = d_mixture_grid_pred %>%
       mutate(
         x2 = (0.5 - beta[1] - x1 * beta[2]) / beta[3]
       ),
     size = 1
   )
 ```
+
+## 2.3.2 Nearest-Neighbor Methods
+
+The $k$-nearest-neighbor fit for $\hat{Y}$ is given by:
+
+$$
+\hat{Y}(x) = \frac{1}{k} \sum_{x \in N_k (x)} y_i \tag{2.8}
+$$
+
+where $N_k(x)$ is the neighborhood of $x$ defined by the $k$ closest points to $x_i$ in the training set $\mathcal{T}$.
+For closeness, the simplest choice of metric is Euclidean distance.
+
+Figure 2.2 employs a 15-nearest-neighbor fit:
+
+```{r}
+knn_k15_spec <-
+  nearest_neighbor(
+    neighbors = 15,
+    # Note the dist_power argument, where a value of 2 corresponds to Euclidean
+    #  distance (1 corresponds to Manhattan distance), and the weight_func
+    #  argument which defines the kernel, where "rectangular" is unweighted knn
+    dist_power = 2, weight_func = "rectangular") %>%
+  set_engine("kknn") %>%
+  set_mode("regression") 
+# The parsnip::translate() gives us the actual code used to fit the model
+translate(knn_k15_spec)
+```
+
+```{r}
+knn_k15_fit_mixture <- knn_k15_spec %>%
+  fit(y ~ x1 + x2, data = d_mixture)
+knn_k15_fit_mixture
+```
+
+```{r fig2.2}
+d_mixture_grid_pred <-
+  bind_cols(
+    d_mixture_grid,
+    predict(knn_k15_fit_mixture, d_mixture_grid)
+  ) %>%
+  mutate(y = ifelse(.pred > 0.5, 1, 0))
+
+p_fig2.2 <- d_mixture %>%
+  ggplot(aes(x = x1, y = x2)) +
+  geom_point(aes(color = factor(y)), shape = 21, size = 2, stroke = 1) +
+  scale_color_manual(values = c("lightblue", "orange")) +
+  theme(legend.position = "none") +
+  geom_point(
+    data = d_mixture_grid_pred,
+    aes(color = factor(y)), size = 0.05, alpha = 0.5
+  ) +
+  stat_contour(
+    data = d_mixture_grid_pred, aes(z = .pred),
+    color = "black", breaks = c(0.5)
+  )
+p_fig2.2
+```
+
+This doesn't perfectly recreate the figure, but close enough.
+
+Figure 2.3 is the same approach, except with $k = 1$:
+
+```{r fig2.3}
+knn_k1_spec <-
+  nearest_neighbor(
+    neighbors = 1,
+    dist_power = 2, weight_func = "rectangular") %>%
+  set_engine("kknn") %>%
+  set_mode("regression") 
+knn_k1_fit_mixture <- knn_k1_spec %>%
+  fit(y ~ x1 + x2, data = d_mixture)
+d_mixture_grid_pred <-
+  bind_cols(
+    d_mixture_grid,
+    predict(knn_k1_fit_mixture, d_mixture_grid)
+  ) %>%
+  mutate(y = ifelse(.pred > 0.5, 1, 0))
+
+p_fig2.3 <- d_mixture %>%
+  ggplot(aes(x = x1, y = x2)) +
+  geom_point(aes(color = factor(y)), shape = 21, size = 2, stroke = 1) +
+  scale_color_manual(values = c("lightblue", "orange")) +
+  theme(legend.position = "none") +
+  geom_point(
+    data = d_mixture_grid_pred,
+    aes(color = factor(y)), size = 0.05, alpha = 0.5
+  ) +
+  stat_contour(
+    data = d_mixture_grid_pred, aes(z = .pred),
+    color = "black", breaks = c(0.5)
+  )
+p_fig2.3
+```
+
+## 2.3.3 From Least Squares to Nearest Neighbors
+
+In this section, we compare the two approaches in terms of their test error a testing set.
+The method of data simulation was 
+
+> The data in fact were simulated from a model somewhere between the two, but closer to Scenario 2. First we generated 10 means $m_k$ from a bivariate Gaussian distribution $N((1,0)^T, \bf{I})$ and labelled this class <span style="color: lightblue">BLUE</span>. Similarly, 10 more were drawn from $N(0,1)^T, \bf{I})$ and labelled class <span style="color: orange;">ORANGE</span>.
+
+The simulated means are actually provided in the `esl_mixture` data:
+
+```{r message=FALSE}
+d_sim_means1 <- as_tibble(esl_mixture$means, .name_repair = "unique") %>%
+  rename(x1 = `...1`, x2 = `...2`) %>%
+  mutate(
+    # The first 10 means belong to the BLUE class, the second 10 to ORANGE
+    y = c(rep(0, 10), rep(1, 10))
+  )
+d_sim_means1
+```
+
+But here is how I would simulate them myself with `MASS::mvrnorm`:
+
+```{r message=FALSE}
+set.seed(56)
+d_sim_means2 <-
+  MASS::mvrnorm(
+    n = 10, mu = c(1, 0),
+    Sigma = matrix(c(1, 0,
+                     0, 1),
+                   nrow = 2)
+  ) %>%
+  as_tibble(.name_repair = "unique") %>%
+  mutate(y = 0) %>%
+  bind_rows(
+    MASS::mvrnorm(
+      n = 10, mu = c(0, 1),
+      # Here is a convenient way to generate an identify matrix
+      Sigma = diag(2)
+    ) %>%
+      as_tibble(.name_repair = "unique") %>%
+      mutate(y = 1)
+  ) %>%
+  rename(x1 = `...1`, x2 = `...2`)
+d_sim_means2
+```
+
+Here is how my means compare to those from ESL:
+
+```{r fig.height=3, fig.width=5}
+d_sim_means1 %>%
+  mutate(source = "ESL") %>%
+  bind_rows(d_sim_means2 %>% mutate(source = "my simulation")) %>%
+  pivot_longer(cols = c(x1, x2), names_to = "x", values_to = "mean") %>%
+  ggplot(aes(y = x, x = mean, color = factor(y))) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  facet_wrap(~source, ncol = 1) +
+  scale_color_manual(values = c("lightblue", "orange")) +
+  theme(legend.position = "none") +
+  add_facet_borders() +
+  labs(y = NULL)
+```
+
+Looks similar enough to me.
+The important thing to note is that, in the <span style="color: lightblue">BLUE</span> class, the values for $x_1$ (mean 1) are larger on average than $x_2$ (mean 0), and vice versa for the <span style="color: orange">ORANGE</span> class.
+
+The next step is:
+
+> Then for each class we generated 100 observations as follows: for each observation, we picked an $m_k$ at random with probability 1/10, and then generated a $N(m_k ,I/5)$, thus leading to a mixture of Gaussian clusters for each class. Figure 2.4 shows the result of classifying 10,000 new observations generated from the model.
+
+```{r message=FALSE}
+# Use tictoc to get runtime
+library(tictoc)
+
+set.seed(5)
+
+tic()
+d_sim_mixture <-
+  tibble(
+    y = 0,
+    m1 = sample(esl_mixture$means[1:10, 1], size = 5000, replace = TRUE),
+    m2 = sample(esl_mixture$means[1:10, 2], size = 5000, replace = TRUE)
+  ) %>%
+  bind_rows(
+    tibble(
+      y = 1,
+      m1 = sample(esl_mixture$means[11:20, 1], size = 5000, replace = TRUE),
+      m2 = sample(esl_mixture$means[11:20, 2], size = 5000, replace = TRUE)
+    )
+  ) %>%
+  # A fast way to simulate these data points is to specify the number of
+  #  combinations of means m1 and m2
+  count(y, m1, m2) %>%
+  mutate(
+    data = pmap(
+      list(n, m1, m2),
+      function(n, m1, m2) {
+        # Then input the number of draws n from MASS::mvrnorm
+        MASS::mvrnorm(n = n, mu = c(m1, m2), Sigma = (1/5) * diag(2)) %>%
+          as_tibble(.name_repair = "unique") %>%
+          rename(x1 = `...1`, x2 = `...2`)
+      }
+    )
+  ) %>%
+  unnest(data)
+toc()
+```
+
+```{r eval=FALSE, include=FALSE, message=FALSE}
+# Here is the slow way, for comparison
+tic()
+d_sim_mixture <-
+  tibble(
+    y = 0,
+    m1 = sample(esl_mixture$means[1:10, 1], size = 5000, replace = TRUE),
+    m2 = sample(esl_mixture$means[1:10, 2], size = 5000, replace = TRUE)
+  ) %>%
+  bind_rows(
+    tibble(
+      y = 1,
+      m1 = sample(esl_mixture$means[11:20, 1], size = 5000, replace = TRUE),
+      m2 = sample(esl_mixture$means[11:20, 2], size = 5000, replace = TRUE)
+    )
+  ) %>%
+  mutate(
+    data = map2(
+      m1, m2,
+      ~ {
+        MASS::mvrnorm(n = 1, mu = c(.x, .y), Sigma = (1 / 5) * diag(2)) %>%
+          as_tibble_row(.name_repair = "unique") %>%
+          rename(x1 = `...1`, x2 = `...2`)
+      }
+    )
+  ) %>%
+  unnest(data)
+toc()
+# 29.15 sec elapsed
+# The bottleneck here seems to be the as_tibble step
+tic()
+d_sim_mixture <-
+  tibble(
+    y = 0,
+    m1 = sample(esl_mixture$means[1:10, 1], size = 5000, replace = TRUE),
+    m2 = sample(esl_mixture$means[11:20, 1], size = 5000, replace = TRUE)
+  ) %>%
+  bind_rows(
+    tibble(
+      y = 1,
+      m1 = sample(esl_mixture$means[1:10, 2], size = 5000, replace = TRUE),
+      m2 = sample(esl_mixture$means[11:20, 2], size = 5000, replace = TRUE)
+    )
+  ) %>%
+  mutate(
+    data = map2(
+      m1, m2,
+      ~{
+        MASS::mvrnorm(n = 1, mu = c(.x, .y), Sigma = (1/5) * diag(2))
+      }
+    )
+  )
+toc()
+# 1.36 sec elapsed
+```
+
+Now to reproduce Figure 2.4, we need to fit these 10,000 new samples to various models fit with the 200 original samples.
+We've already got the one (and only) linear model, which we can get the error rate for in the testing and training data:
+
+```{r}
+lm_fits_mixture_error <-
+  tibble(
+    df = 3,
+    lm_fit = list(lm_fit_mixture)
+  ) %>%
+  mutate(
+    train = map_dbl(
+      lm_fit,
+      function(lm_fit) {
+        # The broom::augment() function quickly gives us predictions,
+        #  and lets us avoid using bind_cols()
+        augment(lm_fit, d_mixture) %>%
+          mutate(y_pred = ifelse(.pred > 0.5, 1, 0)) %>%
+          summarise(error = 1 - mean(y == y_pred)) %>%
+          pull(error)
+      }
+    ),
+    test = map_dbl(
+      lm_fit,
+      function(lm_fit) {
+        augment(lm_fit, d_sim_mixture) %>%
+          mutate(y_pred = ifelse(.pred > 0.5, 1, 0)) %>%
+          summarise(error = 1 - mean(y == y_pred)) %>%
+          pull(error)
+      }
+    )
+  ) %>%
+  pivot_longer(cols = c(train, test), names_to = "dataset", values_to = "error")
+lm_fits_mixture_error
+```
+
+We've already tried k-nearest-neighbor with $k$ = 1 and 15 neighbors, but now we will fit a range from $k$ = 1 to 151:
+
+```{r}
+knn_spec <-
+  nearest_neighbor(
+    neighbors = varying(),
+    # Here I'm not using the weight_func argument because it seems to fit the
+    #  results of the figure better
+    dist_power = 2, weight_func = "rectangular") %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+knn_fits_mixture <-
+  tibble(
+    neighbors = c(151, 101, 69, 45, 31, 21, 11, 7, 5, 3, 1),
+    df = 200 / neighbors
+  ) %>%
+  mutate(
+    knn_fit = map(
+      neighbors,
+      function(neighbors) {
+        knn_spec %>%
+          set_args(neighbors = neighbors) %>%
+          fit(y ~ x1 + x2, data = d_mixture)
+      }
+    )
+  )
+```
+
+Now apply the fits to both the 200 observation training set, and the 10,000 observations of the testing set:
+
+```{r}
+knn_fits_mixture_error <- knn_fits_mixture %>%
+  mutate(
+    train = map_dbl(
+      knn_fit,
+      function(knn_fit) {
+        augment(knn_fit, d_mixture) %>%
+          mutate(y_pred = ifelse(.pred > 0.5, 1, 0)) %>%
+          summarise(error = 1 - mean(y == y_pred)) %>%
+          pull(error)
+      }
+    ),
+    test = map_dbl(
+      knn_fit,
+      function(knn_fit) {
+        augment(knn_fit, d_sim_mixture) %>%
+          mutate(y_pred = ifelse(.pred > 0.5, 1, 0)) %>%
+          summarise(error = 1 - mean(y == y_pred)) %>%
+          pull(error)
+      }
+    )
+  ) %>%
+  pivot_longer(cols = c(train, test), names_to = "dataset", values_to = "error")
+knn_fits_mixture_error
+```
+
+```{r}
+p_fig2.4 <-
+  knn_fits_mixture_error %>%
+  ggplot(aes(x = df, y = error)) +
+  geom_line(aes(color = dataset), size = 1) +
+  geom_point(aes(fill = dataset), shape = 21, color = "white", size = 2,
+             stroke = 2, show.legend = FALSE) +
+  geom_point(
+    data = lm_fits_mixture_error,
+    aes(color = dataset), size = 3, shape = 15, show.legend = FALSE
+  ) +
+  scale_x_log10(breaks = c(2, 3, 5, 8, 12, 18, 29, 67, 200)) +
+  coord_cartesian(ylim = c(0.07, 0.33)) +
+  theme(legend.position = c(0.1, 0.1)) +
+  labs(x = "Degrees of freedom - N/k", color = NULL) +
+  annotate(geom = "text", x = 5, y = 0.28, label = "Linear")
+p_fig2.4
+```
+
+The last part of the figure is the Bayes rates, which we'll encounter in the next section.
+
+# 2.4 Statistical Decision Theory
+
+> We seek a function $f(X)$ for predicting $Y$ given values of the input $X$. This theory requires a loss function $L(Y,f(X))$ for penalizing errors in prediction, and by far the most common and convenient is squared error loss: $L(Y,f(X)) = (Y − f(X))^2$.
+
+This leads us to a criterion for choosing $f$, the expected (squared) prediction error:
+
+$$
+\begin{align}
+\text{EPE}(f) &= \text{E} (Y - f(X))^2 \tag{2.9} \\
+&= \int [y - f(x)]^2 \text{Pr}(dx, dy) \tag{2.10}
+\end{align}
+$$
+
+The solution to minimize the EPE is the conditional expectation, also known as the *regression* function:
+
+$$
+f(x) = \text{E}(Y | X = x) \tag{2.13}
+$$
+
+In nearest-neighbor methods, we make the assumptions that (1) expectation is approximated by averaging over sample data ($\text{Ave}(y|x)$), and (2) conditioning to the point ($X = x_i$) is relaxed to some region "close" to the target point ($x_i \in N_k(x)$):
+
+
+$$
+\hat{f}_x = \text{Ave}(y_i | x_i \in N_k (x)) \tag{2.14}
+$$
+
+Linear regression is a model-based approach where we assume $f(x)$ is well-approximated by a globally linear function:
+
+$$
+f(x) \approx x^T \beta \tag{2.15}
+$$
+
+In the case of predicting a categorical variable $G$ with possible values $\mathcal{G}$, the loss function is represented by a $K \times K$ matrix $\bf{L}$ where $K = \text{card}(\mathcal{G})$ (cardinality of a set is the number of elements, so the number of possible values $G$ can take).
+$\bf{L}$ will be zero on the diagonal and non-negative ($L(k,l)$) elsewhere.
+Most often, we use the *zero-one* loss function, where $L(k,l) = 1$ if $\mathcal{G}_k \neq \mathcal{G}_l$
+
+For instance, if $\mathcal{G} =$
+{<span style="color: lightblue; font-weight:bold">BLUE</span>,
+<span style="color: orange; font-weight:bold">ORANGE</span>} then the $2 \times 2$ loss matrix would look like:
+
+$$
+\bf{L} = 
+\begin{bmatrix}
+0 & L(\text{ORANGE}, \text{BLUE}) = 1 \\
+L(\text{BLUE}, \text{ORANGE}) = 1 & 0
+\end{bmatrix}
+$$
+The `discrim` package is an extension to `parsnip` which provides additional model definitions for discriminant analysis, including naive Bayes.
+
+```{r}
+library(discrim, quietly = TRUE)
+nb_spec <- naive_Bayes() %>%
+  # The mode is always classification with NB, so this line can be omitted 
+  set_mode("classification") %>%
+  # Note that this engine requires the "naivebayes" package to be installed
+  # The other option is "klaR", as per parsnip::show_engines("naive_Bayes")
+  #  but that also requires the package of the same name
+  set_engine("naivebayes")
+translate(nb_spec)
+
+nb_fit_mixture <- nb_spec %>%
+  fit(factor(y) ~ x1 + x2, data = d_mixture)
+```
+
+The output from the model is very long and confusing:
+
+<details>
+
+```{r}
+nb_fit_mixture
+```
+
+</details>
+
+Let's treat it as a black box compute the error on the training and testing sets:
+
+```{r}
+nb_fits_mixture_error <-
+  tibble(
+    nb_fit = list(nb_fit_mixture)
+  ) %>%
+  mutate(
+    train = map_dbl(
+      nb_fit,
+      function(nb_fit) {
+        augment(nb_fit, d_mixture) %>%
+          mutate(y = factor(y)) %>%
+          summarise(error = 1 - mean(y == .pred_class)) %>%
+          pull(error)
+      }
+    ),
+    test = map_dbl(
+      nb_fit,
+      function(nb_fit) {
+        augment(nb_fit, d_sim_mixture) %>%
+          mutate(y = factor(y)) %>%
+          summarise(error = 1 - mean(y == as.numeric(.pred_class))) %>%
+          pull(error)
+      }
+    )
+  ) %>%
+  pivot_longer(cols = c(train, test), names_to = "dataset", values_to = "error")
+nb_fits_mixture_error   
+```
+
+Terrible performance on the testing set, but looks like the same training error as in the figure, which we can finally complete:
+
+```{r fig2.4}
+p_fig2.4 +
+  geom_hline(
+    data = nb_fits_mixture_error %>%
+      filter(dataset == "train") %>%
+      mutate(dataset = "Bayes"),
+    aes(yintercept = error, color = dataset), size = 1
+  ) +
+  scale_color_manual(values = c("black", td_colors$pastel6[1:2]))
+```
+
+```{r}
+d_mixture_grid_nb_pred <- augment(nb_fit_mixture, d_mixture_grid)
+
+p_fig2.5 <- d_mixture %>%
+  ggplot(aes(x = x1, y = x2)) +
+  geom_point(aes(color = factor(y)), shape = 21, size = 2, stroke = 1) +
+  scale_color_manual(values = c("lightblue", "orange")) +
+  theme(legend.position = "none") +
+  geom_point(
+    data = d_mixture_grid_nb_pred,
+    aes(color = .pred_class), size = 0.05, alpha = 0.5
+  ) +
+  stat_contour(
+    data = d_mixture_grid_nb_pred, aes(z = .pred_0),
+    color = "black", breaks = c(0.5)
+  )
+p_fig2.5
+```
+
+It kind of looks correct if you squint.
+There are some confusing areas, like the bit of orange in the bottom left corner.
+It may have something to do with the way I specified the naive Bayes classifier.
+
+# 2.5 Local Methods in High Dimensions
+
+The $k$-nearest-neighbor approach breaks down in high dimensions, a phenomenon commonly referred to as the *curve of dimensionality*.
+
+Consider a target point in a $p$-dimensional unit hypercube.
+The local neighborhood of the target point is also a hypercube of edge length $e_p(r) = r^{1/p}$, where $r$ is the fraction of the unit volume.
+If we want to capture $r = 0.1$ of the observations in a $p = 10$-dimensional space, then the neighborhood will have edge length
+$e_{10}(0.1) = 0.8$, i.e. 80% of the full hypercube.
+This is no longer a "local" neighborhood, and reducing $r$ just increases the variance of our fit.
+
+Show this relationship as in Figure 2.6 (right):
+
+```{r fig2.6}
+p_fig2.6 <-
+  crossing(
+    p = c(1, 2, 3, 10),
+    r = seq(0, 0.6, 0.01)
+  ) %>%
+  mutate(dist = r^(1 / p)) %>%
+  ggplot(aes(x = r, y = dist, group = p)) +
+  geom_line(color = td_colors$nice$spanish_blue, size = 1) +
+  geom_text(
+    data = . %>% filter(r == 0.6),
+    aes(label = glue("p = {p}")), hjust = 0, nudge_x = 0.02
+  ) +
+  theme_td_grid(base_family = "Roboto Condensed") +
+  labs(x = "Fraction of volume", y = "Distance") +
+  ylim(c(0, 1.0)) +
+  xlim(c(0, 0.7))
+p_fig2.6
+```
+To illustrate this further, another example:
+
+> Suppose we have 1000 training examples $x_i$ generated uniformly on $[−1,1]^p$. Assume that the true
+relationship between X and Y is.
+$$
+Y = f(X) = e^{−8||X||^2}
+$$
+> without any measurement error. We use the 1-nearest-neighbor rule to predict $y_0$ at the test point $x_0 = 0$. Denote the training set by $\mathcal{T}$. We can compute the expected prediction error at $x_0$ for our procedure, averaging over all such samples of size 1000. Since the probelm is deterministic, this is the mean squared error (MSE) for estimatnig $f(0)$:
+
+$$
+\begin{align}
+\text{MSE}(x_0) &= \text{E}_{\mathcal{T}} [f(x_0) - \hat{y}_0]^2 \\
+&= \text{E}_{\mathcal{T}} [\hat{y}_0 - \text{E}_{\mathcal{T}}(\hat{y}_0)]^2 + [\text{E}_{\mathcal{T}} (\hat{y}_0 - f(x_0)]^2 \\
+&= \text{Var}_{\mathcal{T}}(\hat{y}_0) + \text{Bias}^2 (\hat{y}_0)
+\end{align} \tag{2.25}
+$$
+
+This is the *bias-variance decomposition* of error into two components: variance and squared bias.
+
+Let's simulate to illustrate this
+
+```{r}
+
+```
+
 
 
 # Reproducibility
